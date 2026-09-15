@@ -624,10 +624,7 @@ telegram_progress() {
         PLATFORM_COMMAND="curl -s -F \"chat_id=$CHAT_ID\" -F \"document=@\$FILE\" -F \"caption=\$CAPTION\" -F \"parse_mode=HTML\" \"https://api.telegram.org/bot$BOT_TOKEN/sendDocument\""
     fi
     
-    CAPTION="
-📦 <b>From </b><code>\${ip}</code> [By <b><a href='https://t.me/erfjabs'>@ErfJabs</a></b>]
-<b>➖➖➖➖Sponsor➖➖➖➖</b>
-<a href='${SPONSORLINK}'>${SPONSORTEXT}</a>"
+    CAPTION=""
     success "Telegram configuration completed successfully."
     LIMITSIZE=49
     sleep 1
@@ -664,7 +661,7 @@ discord_progress() {
 
     # Set the platform command for sending files
     PLATFORM_COMMAND="curl -s -F \"file=@\$FILE\" -F \"payload_json={\\\"content\\\": \\\"\$CAPTION\\\"}\" \"$DISCORD_WEBHOOK\""
-    CAPTION="📦 **From** \`${ip}\` [by **[@ErfJabs](https://t.me/erfjabs)**]\n➖➖➖➖**Sponsor**➖➖➖➖\n[${SPONSORTEXT}](${SPONSORLINK})"
+    CAPTION=""
     LIMITSIZE=24
     success "Discord configuration completed successfully."
     sleep 1
