@@ -12,8 +12,8 @@
 - **Automated scheduling**  
 - **Multi-template support**  
 - **Add/remove custom directories**  
-- **Send backups with no size limits**  
-- **Set a password for backup files**  
+- **Send backups up to 10 MiB or receive a size notification**
+- **Create archives without a password**
 - **User-friendly interface**  
 - **Clear old backups**  
 - **Include date and time in file names**  
@@ -49,8 +49,10 @@ deleted and only the latest is kept. If delivery fails, no archives are deleted.
 
 To update an existing installation, run the current installer and choose menu
 option **5**, then select the existing backup and set both schedules. Existing
-archive, database and delivery settings are preserved; its old cron entry is
+database and delivery settings are preserved; future archives are created without
+a password and existing archives retain their original password. Its old cron entry is
 replaced. A copy of the original generated script is saved beside it with the
-suffix `.before-separated-schedules`. Unrecognized script formats are left
+suffix `.before-separated-schedules` or `.before-unencrypted-archives` when
+updating a previously separated script. Unrecognized script formats are left
 unchanged. Run the generated script with `backup` or `send` to do either task
 manually.

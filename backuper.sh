@@ -204,7 +204,7 @@ start_backup() {
     generate_template
     toggle_directories
     generate_platform
-    generate_password
+    COMPRESS="7z a -t7z -mx=9 -v${LIMITSIZE}m"
     generate_script
 }
 
@@ -296,10 +296,31 @@ install_schedules() {
     { [[ -z "$filtered" ]] || printf '%s\n' "$filtered"; printf '%s %s backup\n%s %s send\n' "$BACKUP_TIMER" "$script" "$SEND_TIMER" "$script"; } | crontab -
 }
 
+# Remove only the archive password option, leaving database and delivery credentials intact.
+remove_archive_password() {
+    local file="$1"
+    grep -Eq '^[[:space:]]*if ! 7z a ' "$file" || { warn "Unsupported archive command; no changes made."; return 1; }
+    sed -i "/^[[:space:]]*if ! 7z a / s/ -p'[[:alnum:]]\{8,\}'//g" "$file" || return 1
+    if grep -E '^[[:space:]]*if ! 7z a ' "$file" | grep -Eq -- '(^|[[:space:]])-p'; then
+        warn "Unsupported archive password option; no changes made."
+        return 1
+    fi
+}
+
 # Convert scripts produced by the previous installer without asking for secrets again.
 upgrade_script() {
     local script="$1" remark="$2" tmp command notice_command version
-    grep -q '^# Backuper separated schedules v2$' "$script" && return 0
+    grep -q '^# Backuper separated schedules v3$' "$script" && return 0
+    if grep -q '^# Backuper separated schedules v2$' "$script"; then
+        tmp=$(mktemp "${script}.XXXXXX") || return 1
+        sed 's/^# Backuper separated schedules v2$/# Backuper separated schedules v3/' "$script" > "$tmp"
+        if ! remove_archive_password "$tmp" || ! bash -n "$tmp"; then rm -f "$tmp"; return 1; fi
+        chmod 700 "$tmp"
+        cp -p -- "$script" "${script}.before-unencrypted-archives" || { rm -f "$tmp"; return 1; }
+        chmod 600 "${script}.before-unencrypted-archives"
+        mv -f -- "$tmp" "$script"
+        return
+    fi
     version=legacy
     if grep -q '^# Backuper separated schedules v1$' "$script"; then
         version=v1
@@ -332,11 +353,11 @@ upgrade_script() {
     tmp=$(mktemp "${script}.XXXXXX") || return 1
     {
         if [[ "$version" == v1 ]]; then
-            sed '/^send)$/,$d; s/^# Backuper separated schedules v1$/# Backuper separated schedules v2/' "$script"
+            sed '/^send)$/,$d; s/^# Backuper separated schedules v1$/# Backuper separated schedules v3/' "$script"
         else
         cat <<'RUNTIME'
 #!/bin/bash
-# Backuper separated schedules v2
+# Backuper separated schedules v3
 set -e
 umask 077
 RUNTIME
@@ -403,7 +424,7 @@ RUNTIME
 esac
 RUNTIME
     } > "$tmp"
-    if ! bash -n "$tmp"; then rm -f "$tmp"; warn "Conversion failed; original script was not changed."; return 1; fi
+    if ! remove_archive_password "$tmp" || ! bash -n "$tmp"; then rm -f "$tmp"; warn "Conversion failed; original script was not changed."; return 1; fi
     chmod 700 "$tmp"
     cp -p -- "$script" "${script}.before-separated-schedules" || { rm -f "$tmp"; return 1; }
     chmod 600 "${script}.before-separated-schedules"
@@ -660,37 +681,6 @@ marzban_template() {
     BACKUP_DIRECTORIES="${DIRECTORIES[*]}"
     log "Complete Marzban"
     confirm
-}
-
-generate_password() {
-    clear
-    print "[PASSWORD PROTECTION]\n"
-    print "Set a password for the 7z archive. The password must contain both letters and numbers, and be at least 8 characters long.\n"
-
-    while true; do
-        input "Enter the password for the archive: " PASSWORD
-
-        if [ -z "$PASSWORD" ]; then
-            wrong "Password cannot be empty! Please enter a password."
-            continue
-        fi
-
-        # Validate password
-        if [[ ! "$PASSWORD" =~ ^[a-zA-Z0-9]{8,}$ ]]; then
-            wrong "Password must be at least 8 characters long and contain only letters and numbers. Please try again."
-            continue
-        fi
-
-        input "Confirm the password: " CONFIRM_PASSWORD
-        
-        if [ "$PASSWORD" == "$CONFIRM_PASSWORD" ]; then
-            success "Password confirmed."
-            COMPRESS="7z a -t7z -mx=9 -p'$PASSWORD' -v${LIMITSIZE}m"
-            break
-        else
-            wrong "Passwords do not match. Please try again."
-        fi
-    done
 }
 
 generate_platform() {
