@@ -300,7 +300,11 @@ install_schedules() {
 remove_archive_password() {
     local file="$1"
     grep -Eq '^[[:space:]]*if ! 7z a ' "$file" || { warn "Unsupported archive command; no changes made."; return 1; }
-    sed -i "/^[[:space:]]*if ! 7z a / s/ -p'[[:alnum:]]\{8,\}'//g" "$file" || return 1
+    sed -i \
+        -e "/^[[:space:]]*if ! 7z a / s/ -p'[^']*'//g" \
+        -e '/^[[:space:]]*if ! 7z a / s/ -p"[^"]*"//g' \
+        -e '/^[[:space:]]*if ! 7z a / s/ -p[[:alnum:]_]*\([[:space:]]\)/\1/g' \
+        "$file" || return 1
     if grep -E '^[[:space:]]*if ! 7z a ' "$file" | grep -Eq -- '(^|[[:space:]])-p'; then
         warn "Unsupported archive password option; no changes made."
         return 1
@@ -441,8 +445,8 @@ update_existing() {
     selected="${scripts[number-1]}"
     remark=$(basename "$selected" "$SCRIPT_SUFFIX"); remark="${remark#_}"
     generate_schedules
-    upgrade_script "$selected" "$remark" || return
-    install_schedules "$selected" || { warn "Could not update crontab."; return 1; }
+    upgrade_script "$selected" "$remark" || { warn "Update failed; the existing script and schedules were not changed."; confirm; return 1; }
+    install_schedules "$selected" || { warn "Could not update crontab."; confirm; return 1; }
     success "Updated $selected. Backup: $BACKUP_TIMER; send: $SEND_TIMER"
     confirm
 }
